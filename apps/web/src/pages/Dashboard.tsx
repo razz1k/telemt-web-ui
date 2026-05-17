@@ -4,6 +4,8 @@ import { ServiceTabs } from "../components/ServiceTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { api, formatBytes, formatUptime, pickUptimeSeconds } from "../lib/api";
 import {
+  mergePerUserTrafficMetrics,
+  parseAccumulatedPerUserTraffic,
   parseDashboardMetrics,
   parsePerUserTrafficMetrics,
   sumPerUserTrafficCounters,
@@ -56,7 +58,10 @@ export function DashboardPage() {
         results[7].status === "fulfilled" ? results[7].value : null;
       const prom = parseDashboardMetrics(metricsText);
       const traffic = sumPerUserTrafficCounters(
-        parsePerUserTrafficMetrics(metricsText),
+        mergePerUserTrafficMetrics(
+          parsePerUserTrafficMetrics(metricsText),
+          parseAccumulatedPerUserTraffic(metricsText),
+        ),
       );
 
       const healthOk = health?.status === "ok";

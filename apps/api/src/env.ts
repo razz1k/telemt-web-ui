@@ -11,4 +11,8 @@ export const config = {
   telemtApiAuth: envString("TELEMT_API_AUTH"),
   webUiPassword: envString("WEB_UI_PASSWORD"),
   dbPath: envString("UI_DB_PATH", "/var/lib/telemt-web-ui/state.db"),
+  trafficPollIntervalMs: Number.parseInt(
+    envString("TRAFFIC_POLL_INTERVAL_MS", "300000"),
+    10,
+  ),
 };

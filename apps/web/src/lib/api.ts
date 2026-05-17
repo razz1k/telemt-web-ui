@@ -107,6 +107,15 @@ export const api = {
       `/api/v1/users/${encodeURIComponent(username)}/reset-quota`,
       { method: "POST", body: "{}" },
     ),
+  resetAccumulatedTraffic: (username?: string) => {
+    const query = username
+      ? `?username=${encodeURIComponent(username)}`
+      : "";
+    return request<{ serverId: string; rowsCleared: number }>(
+      `/api/traffic/accumulated${query}`,
+      { method: "DELETE" },
+    );
+  },
   getServers: () =>
     request<{ servers: TelemtServer[]; activeServerId: string }>("/api/servers"),
   createServer: (body: {

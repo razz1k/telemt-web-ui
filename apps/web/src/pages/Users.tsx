@@ -12,6 +12,8 @@ import type { SummaryData, SystemInfoData, UserInfo } from "../lib/types";
 import {
   computeMbpsFromCounterDelta,
   formatMbps,
+  mergePerUserTrafficMetrics,
+  parseAccumulatedPerUserTraffic,
   parsePerUserTrafficMetrics,
   sumPerUserTrafficCounters,
   type UserTrafficMetrics,
@@ -73,7 +75,12 @@ export function UsersPage() {
       const ipMap = new Map(
         activeIps.map((row) => [row.username, row.ips]),
       );
-      const trafficByUser = parsePerUserTrafficMetrics(metricsText);
+      const liveByUser = parsePerUserTrafficMetrics(metricsText);
+      const accumulatedByUser = parseAccumulatedPerUserTraffic(metricsText);
+      const trafficByUser = mergePerUserTrafficMetrics(
+        liveByUser,
+        accumulatedByUser,
+      );
       const trafficCounters = sumPerUserTrafficCounters(trafficByUser);
       return {
         system,
@@ -432,7 +439,14 @@ export function UsersPage() {
           type="button"
           className="ui-btn ui-btn-red"
           onClick={async () => {
-            if (!confirm("Reset quota counters for all users?")) return;
+            if (
+              !confirm(
+                "Reset traffic stats for all users? Clears Telemt quota counters and accumulated history in the panel database.",
+              )
+            ) {
+              return;
+            }
+            await api.resetAccumulatedTraffic().catch(() => undefined);
             for (const u of users) {
               await api.resetQuota(u.username).catch(() => undefined);
             }
@@ -553,6 +567,9 @@ export function UsersPage() {
                   }
                 }}
                 onResetQuota={async (username) => {
+                  await api.resetAccumulatedTraffic(username).catch(
+                    () => undefined,
+                  );
                   await api.resetQuota(username);
                   void queryClient.invalidateQueries({ queryKey: ["users"] });
                   notifyChange({

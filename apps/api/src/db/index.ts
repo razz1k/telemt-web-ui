@@ -47,6 +47,21 @@ export function initDatabase(): void {
       PRIMARY KEY (server_id, username),
       FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS user_traffic_accumulated (
+      server_id TEXT NOT NULL,
+      username TEXT NOT NULL,
+      accumulated_download_bytes INTEGER NOT NULL DEFAULT 0,
+      accumulated_upload_bytes INTEGER NOT NULL DEFAULT 0,
+      last_download_counter INTEGER NOT NULL DEFAULT 0,
+      last_upload_counter INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (server_id, username),
+      FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_traffic_accumulated_server
+      ON user_traffic_accumulated(server_id);
   `);
 
   seedBuiltinServer();

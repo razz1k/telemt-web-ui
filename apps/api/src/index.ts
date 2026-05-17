@@ -13,8 +13,10 @@ import {
 } from "./db/secrets.js";
 import { request as httpRequest } from "undici";
 import { fetchTelemtMetrics, proxyToTelemtApi } from "./proxy.js";
+import { resetAccumulatedTraffic, formatAccumulatedPrometheus } from "./db/traffic.js";
 import { registerServerRoutes } from "./routes/servers.js";
 import { resolveProxyTarget } from "./target.js";
+import { startTrafficPoller } from "./traffic-poller.js";
 
 initDatabase();
 void syncSecretsFromConfig();
@@ -138,10 +140,17 @@ app.put("/api/config", async (request, reply) => {
 
 app.get("/api/metrics", async (request, reply) => {
   const target = resolveProxyTarget(request);
+  const serverId = resolveServerIdFromRequest(
+    request.headers as Record<string, string | string[] | undefined>,
+  );
   try {
     const result = await fetchTelemtMetrics(target);
     reply.header("content-type", "text/plain; version=0.0.4; charset=utf-8");
-    return reply.code(result.statusCode).send(result.body);
+    if (result.statusCode !== 200) {
+      return reply.code(result.statusCode).send(result.body);
+    }
+    const body = result.body + formatAccumulatedPrometheus(serverId);
+    return reply.code(200).send(body);
   } catch (err) {
     request.log.error(err);
     return reply.code(502).send({
@@ -150,6 +159,21 @@ app.get("/api/metrics", async (request, reply) => {
     });
   }
 });
+
+app.delete<{ Querystring: { username?: string } }>(
+  "/api/traffic/accumulated",
+  async (request, reply) => {
+    const serverId = resolveServerIdFromRequest(
+      request.headers as Record<string, string | string[] | undefined>,
+    );
+    const username = request.query.username?.trim() || undefined;
+    const changes = resetAccumulatedTraffic(serverId, username);
+    return reply.send({
+      ok: true,
+      data: { serverId, username: username ?? null, rowsCleared: changes },
+    });
+  },
+);
 
 function enrichUsersResponse(
   serverId: string,
@@ -248,6 +272,20 @@ for (const method of proxyMethods) {
             parsed,
           );
 
+          if (
+            method === "POST" &&
+            parsed.ok &&
+            /^\/v1\/users\/([^/]+)\/reset-quota$/.test(apiPath)
+          ) {
+            const match = /^\/v1\/users\/([^/]+)\/reset-quota$/.exec(apiPath);
+            if (match) {
+              resetAccumulatedTraffic(
+                serverId,
+                decodeURIComponent(match[1]),
+              );
+            }
+          }
+
           let outbound = parsed;
           if (method === "GET" && apiPath.startsWith("/v1/users")) {
             outbound = enrichUsersResponse(serverId, apiPath, parsed);
@@ -267,6 +305,8 @@ for (const method of proxyMethods) {
     },
   });
 }
+
+startTrafficPoller(app.log);
 
 try {
   await app.listen({ port: config.port, host: "0.0.0.0" });

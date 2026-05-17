@@ -15,6 +15,7 @@ services:
       TELEMT_API_AUTH: ${TELEMT_API_AUTH:-}
       WEB_UI_PASSWORD: ${WEB_UI_PASSWORD:-}
       UI_DB_PATH: /var/lib/telemt-web-ui/state.db
+      TRAFFIC_POLL_INTERVAL_MS: ${TRAFFIC_POLL_INTERVAL_MS:-300000}
       UID: ${UID:-1000}
       GID: ${GID:-1000}
     volumes:

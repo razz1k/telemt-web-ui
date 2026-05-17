@@ -118,3 +118,45 @@ export function parsePerUserTrafficMetrics(
   }
   return map;
 }
+
+/** Persisted totals from BFF SQLite (LuCI-compatible metric names). */
+export function parseAccumulatedPerUserTraffic(
+  text: string,
+): Map<string, UserTrafficMetrics> {
+  const download = parsePrometheusLabeledMetric(
+    text,
+    "telemt_accumulated_tx",
+    "user",
+  );
+  const upload = parsePrometheusLabeledMetric(
+    text,
+    "telemt_accumulated_rx",
+    "user",
+  );
+  const users = new Set([...download.keys(), ...upload.keys()]);
+  const map = new Map<string, UserTrafficMetrics>();
+  for (const username of users) {
+    map.set(username, {
+      downloadBytes: download.get(username) ?? 0,
+      uploadBytes: upload.get(username) ?? 0,
+    });
+  }
+  return map;
+}
+
+export function mergePerUserTrafficMetrics(
+  live: Map<string, UserTrafficMetrics>,
+  accumulated: Map<string, UserTrafficMetrics>,
+): Map<string, UserTrafficMetrics> {
+  const users = new Set([...live.keys(), ...accumulated.keys()]);
+  const map = new Map<string, UserTrafficMetrics>();
+  for (const username of users) {
+    const l = live.get(username);
+    const a = accumulated.get(username);
+    map.set(username, {
+      downloadBytes: (l?.downloadBytes ?? 0) + (a?.downloadBytes ?? 0),
+      uploadBytes: (l?.uploadBytes ?? 0) + (a?.uploadBytes ?? 0),
+    });
+  }
+  return map;
+}
