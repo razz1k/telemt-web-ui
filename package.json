@@ -14,7 +14,7 @@
     "clean": "sh scripts/clean.sh",
     "clean:repo": "sh scripts/clean-repo.sh",
     "clean:docker": "sh scripts/clean-docker.sh",
-    "clean:full": "npm run clean:repo && npm run clean:docker",
+    "clean:full": "npm run clean:docker && npm run clean:repo",
     "dev:local": "npm run check:config && pnpm -r --parallel dev",
     "build:local": "pnpm -r build",
     "lint:local": "pnpm -r lint",

@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { useServers } from "../context/ServerContext";
+import { AutoRefreshToggle } from "./AutoRefreshToggle";
 import { GlobalSettingsModal } from "./GlobalSettingsModal";
 import { ServerSelector } from "./ServerSelector";
 
@@ -15,6 +16,7 @@ export function Layout() {
             <p className="text-xs text-gray-500">MTProxy control panel</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            <AutoRefreshToggle />
             <ServerSelector />
             <button
               type="button"

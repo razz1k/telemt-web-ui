@@ -9,10 +9,13 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ su-exec
 COPY apps/api/package.json ./
 RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
-RUN mkdir -p /var/lib/telemt-web-ui
+COPY deploy/docker/docker-entrypoint-api.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh \
+  && mkdir -p /var/lib/telemt-web-ui
 EXPOSE 3000
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "dist/index.js"]

@@ -45,9 +45,10 @@ services:
       dockerfile: deploy/docker/Dockerfile.api
     container_name: telemt-web-api
     restart: unless-stopped
-    user: "${UID:-1000}:${GID:-1000}"
     environment:
       API_PORT: "3000"
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
       TELEMT_API_URL: http://telemt:9091
       TELEMT_METRICS_URL: http://telemt:9092
       TELEMT_CONFIG_PATH: /etc/telemt/config.toml

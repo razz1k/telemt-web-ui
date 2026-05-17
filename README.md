@@ -34,24 +34,28 @@ Optional: set `WEB_UI_PASSWORD` and/or `TELEMT_API_AUTH` in `.env` (see [Environ
 
 ## Quick start (external Telemt)
 
-Use when Telemt is already running elsewhere, or you only want the UI stack while `telemt` runs from the bundled compose file.
+Self-contained **UI only** (api + web). Telemt must run separately — on the host or in another container.
 
 ```bash
 cp .env.example .env
-# Set TELEMT_API_URL and TELEMT_METRICS_URL (defaults: host.docker.internal:9091 / :9092)
+# Defaults: TELEMT_API_URL=http://host.docker.internal:9091 (Telemt API on the host)
 # Telemt API/metrics must be reachable from the api container
 
+mkdir -p data
 docker compose -f docker-compose.external.yml up -d --build
 ```
+
+The API entrypoint fixes `./data` ownership on first start if Docker created it as root. Override with `UID` / `GID` in `.env` if needed.
 
 - Web UI: http://localhost:**8081** (avoids clashing with bundled `web` on `8080`)
 - `./config` is mounted read-only at `/etc/telemt` for optional config reads
 - User CRUD via the Control API works without editing `config.toml` from the UI
 
-**Same Docker network as bundled `telemt`** (external compose expects network `telemt-web-ui_telemt_net`):
+**Telemt in Docker from this repo** (API not published to the host; use the compose service name):
 
 ```bash
 docker compose up -d telemt
+# Same project name → shared default network; reach telemt by service name:
 TELEMT_API_URL=http://telemt:9091 TELEMT_METRICS_URL=http://telemt:9092 \
   docker compose -f docker-compose.external.yml up -d --build
 ```
@@ -145,6 +149,34 @@ Browser → Nginx (web) → BFF (api) → Telemt Control API :9091
 ```
 
 Telemt [Control API documentation](https://github.com/telemt/telemt/blob/main/docs/Architecture/API/API.md).
+
+### Data storage layers
+
+There is no single app database. Runtime truth lives in **Telemt**; the UI adds caches and local profiles.
+
+```mermaid
+flowchart LR
+  Browser["Browser\nReact Query + localStorage"]
+  BFF["BFF apps/api\nSQLite state.db"]
+  Toml["config.toml\non disk"]
+  Telemt["Telemt\nControl API + runtime"]
+
+  Browser -->|fetch /api/*| BFF
+  BFF -->|proxy| Telemt
+  BFF -->|read/write MVP settings| Toml
+  BFF -->|server profiles, secret cache| SQLite
+  Toml --> Telemt
+```
+
+| Layer | Location | What it stores |
+|-------|----------|----------------|
+| **Telemt** | proxy process | Users, limits, live connections, metrics (source of truth for runtime) |
+| **config.toml** | `./config/` (volume) | Proxy settings, `[access.users]` secrets (for default server file editing) |
+| **SQLite** | `./data/state.db` | Server profiles, active server id, cached user secrets (API often omits secrets in GET) |
+| **localStorage** | browser | Server list + active id bootstrap cache until `/api/servers` loads |
+| **React Query** | browser memory | API responses; Dashboard/Users poll every 3s on some pages |
+
+External changes (another client, editing `config.toml` on disk) appear after the next API poll or page reload; SQLite secrets sync from `config.toml` on BFF startup and after UI config saves, not continuously.
 
 ## Multiple Telemt servers
 

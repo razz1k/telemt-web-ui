@@ -8,10 +8,9 @@ import {
   parsePerUserTrafficMetrics,
   sumPerUserTrafficCounters,
 } from "../lib/metrics";
+import { useAutoRefresh } from "../context/AutoRefreshContext";
 import { countUsersOnline } from "../lib/users";
 import type { ServiceState } from "../lib/types";
-
-const POLL_MS = 3000;
 
 function deriveServiceState(
   healthOk: boolean,
@@ -24,6 +23,7 @@ function deriveServiceState(
 }
 
 export function DashboardPage() {
+  const { intervalMs } = useAutoRefresh();
   const dashboardQuery = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -76,7 +76,7 @@ export function DashboardPage() {
         error: !healthOk,
       };
     },
-    refetchInterval: POLL_MS,
+    refetchInterval: intervalMs,
   });
 
   const data = dashboardQuery.data;

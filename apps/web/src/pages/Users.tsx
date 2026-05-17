@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { RemoteServerBanner } from "../components/RemoteServerBanner";
 import { ServiceTabs } from "../components/ServiceTabs";
+import { useAutoRefresh } from "../context/AutoRefreshContext";
 import { useChangeNotify } from "../context/ChangeNotifyContext";
 import { useServers } from "../context/ServerContext";
 import { isRemoteServer } from "../lib/servers";
@@ -28,6 +29,7 @@ import {
 
 export function UsersPage() {
   const { activeServer } = useServers();
+  const { intervalMs } = useAutoRefresh();
   const { notifyChange } = useChangeNotify();
   const remote = isRemoteServer(activeServer);
   const queryClient = useQueryClient();
@@ -92,7 +94,7 @@ export function UsersPage() {
         }),
       };
     },
-    refetchInterval: 3000,
+    refetchInterval: intervalMs,
   });
 
   const saveLinksMutation = useMutation({
