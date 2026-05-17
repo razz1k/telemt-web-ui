@@ -10,6 +10,7 @@ import {
 } from "react";
 import { setServerHeadersProvider } from "../lib/api";
 import { api } from "../lib/api";
+import { useChangeNotify } from "./ChangeNotifyContext";
 import {
   initialServersState,
   writeCachedServersState,
@@ -48,6 +49,7 @@ function persistServersState(servers: TelemtServer[], activeServerId: string) {
 }
 
 export function ServerProvider({ children }: { children: ReactNode }) {
+  const { notifyChange } = useChangeNotify();
   const [servers, setServers] = useState<TelemtServer[]>(initial.servers);
   const [activeId, setActiveId] = useState(initial.activeId);
   const [loading, setLoading] = useState(true);
@@ -95,24 +97,59 @@ export function ServerProvider({ children }: { children: ReactNode }) {
       const created = await api.createServer(server);
       await refreshServers();
       setActiveId(created.id);
+      notifyChange({
+        message: `Server "${created.name}" added`,
+        undo: async () => {
+          await api.deleteServer(created.id);
+          await refreshServers();
+        },
+      });
     },
-    [refreshServers],
+    [notifyChange, refreshServers],
   );
 
   const updateServer = useCallback(
     async (id: string, patch: Partial<TelemtServer>) => {
+      const prev = servers.find((s) => s.id === id);
+      if (!prev) return;
       await api.updateServer(id, patch);
       await refreshServers();
+      notifyChange({
+        message: `Server "${patch.name ?? prev.name}" updated`,
+        undo: async () => {
+          await api.updateServer(id, {
+            name: prev.name,
+            apiUrl: prev.apiUrl,
+            metricsUrl: prev.metricsUrl,
+            auth: prev.auth,
+          });
+          await refreshServers();
+        },
+      });
     },
-    [refreshServers],
+    [notifyChange, refreshServers, servers],
   );
 
   const removeServer = useCallback(
     async (id: string) => {
+      const prev = servers.find((s) => s.id === id);
+      if (!prev || prev.builtin) return;
       await api.deleteServer(id);
       await refreshServers();
+      notifyChange({
+        message: `Server "${prev.name}" removed`,
+        undo: async () => {
+          await api.createServer({
+            name: prev.name,
+            apiUrl: prev.apiUrl,
+            metricsUrl: prev.metricsUrl,
+            auth: prev.auth,
+          });
+          await refreshServers();
+        },
+      });
     },
-    [refreshServers],
+    [notifyChange, refreshServers, servers],
   );
 
   const value: ServerContextValue = {

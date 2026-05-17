@@ -27,6 +27,12 @@ export function GlobalSettingsModal() {
 
   if (!globalSettingsOpen) return null;
 
+  const editingServer =
+    editingId && editingId !== "new"
+      ? servers.find((s) => s.id === editingId)
+      : null;
+  const editingBuiltin = editingServer?.builtin ?? false;
+
   function startAdd() {
     setEditingId("new");
     setForm(emptyForm);
@@ -34,7 +40,6 @@ export function GlobalSettingsModal() {
   }
 
   function startEdit(server: TelemtServer) {
-    if (server.builtin) return;
     setEditingId(server.id);
     setForm({
       name: server.name,
@@ -43,6 +48,13 @@ export function GlobalSettingsModal() {
       auth: server.auth,
     });
     setTestStatus(null);
+  }
+
+  function effectiveUrl(
+    stored: string,
+    envDefault: string | undefined,
+  ): string {
+    return stored.trim() || envDefault?.trim() || "";
   }
 
   async function testConnection() {
@@ -127,9 +139,9 @@ export function GlobalSettingsModal() {
         <div className="p-5 space-y-4">
           <p className="text-sm text-gray-400">
             Active: <span className="text-gray-200">{activeServer.name}</span>
-            {activeServer.builtin
-              ? " — uses API URLs from docker-compose environment"
-              : ` — ${activeServer.apiUrl}`}
+            {activeServer.builtin && !activeServer.apiUrl.trim()
+              ? " — API/metrics from environment (or set below)"
+              : ` — ${effectiveUrl(activeServer.apiUrl, activeServer.envDefaults?.apiUrl)}`}
           </p>
 
           <ul className="space-y-2">
@@ -141,35 +153,35 @@ export function GlobalSettingsModal() {
                 <div>
                   <span className="font-medium text-gray-200">{server.name}</span>
                   {server.builtin ? (
-                    <span className="text-gray-500 ml-2">(default / env)</span>
-                  ) : (
-                    <span className="text-gray-500 ml-2 block text-xs font-mono truncate max-w-md">
-                      {server.apiUrl}
-                    </span>
-                  )}
+                    <span className="text-gray-500 ml-2 text-xs">(default)</span>
+                  ) : null}
+                  <span className="text-gray-500 ml-2 block text-xs font-mono truncate max-w-md">
+                    {server.builtin && !server.apiUrl.trim()
+                      ? effectiveUrl("", server.envDefaults?.apiUrl) ||
+                        "(from environment)"
+                      : server.apiUrl}
+                  </span>
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn-ghost text-xs"
+                    onClick={() => startEdit(server)}
+                  >
+                    Edit
+                  </button>
                   {!server.builtin ? (
-                    <>
-                      <button
-                        type="button"
-                        className="ui-btn ui-btn-ghost text-xs"
-                        onClick={() => startEdit(server)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="ui-btn ui-btn-red text-xs"
-                        onClick={() => {
-                          if (confirm(`Remove server "${server.name}"?`)) {
-                            void removeServer(server.id);
-                          }
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn-red text-xs"
+                      onClick={() => {
+                        if (confirm(`Remove server "${server.name}"?`)) {
+                          void removeServer(server.id);
+                        }
+                      }}
+                    >
+                      Remove
+                    </button>
                   ) : null}
                 </div>
               </li>
@@ -179,8 +191,18 @@ export function GlobalSettingsModal() {
           {editingId ? (
             <div className="rounded border border-surface-border bg-surface p-4 space-y-3">
               <h3 className="text-sm font-medium text-gray-300">
-                {editingId === "new" ? "Add server" : "Edit server"}
+                {editingId === "new"
+                  ? "Add server"
+                  : editingBuiltin
+                    ? "Edit default server"
+                    : "Edit server"}
               </h3>
+              {editingBuiltin ? (
+                <p className="text-xs text-gray-500">
+                  Leave API or Metrics URL empty to use TELEMT_API_URL /
+                  TELEMT_METRICS_URL from the API container environment.
+                </p>
+              ) : null}
               <label className="block text-sm">
                 <span className="text-gray-500">Name</span>
                 <input
@@ -193,7 +215,9 @@ export function GlobalSettingsModal() {
                 <span className="text-gray-500">API URL</span>
                 <input
                   className="ui-input w-full mt-1 font-mono text-xs"
-                  placeholder="http://host:9091"
+                  placeholder={
+                    editingServer?.envDefaults?.apiUrl ?? "http://host:9091"
+                  }
                   value={form.apiUrl}
                   onChange={(e) => setForm({ ...form, apiUrl: e.target.value })}
                 />
@@ -202,7 +226,9 @@ export function GlobalSettingsModal() {
                 <span className="text-gray-500">Metrics URL</span>
                 <input
                   className="ui-input w-full mt-1 font-mono text-xs"
-                  placeholder="http://host:9092"
+                  placeholder={
+                    editingServer?.envDefaults?.metricsUrl ?? "http://host:9092"
+                  }
                   value={form.metricsUrl}
                   onChange={(e) =>
                     setForm({ ...form, metricsUrl: e.target.value })

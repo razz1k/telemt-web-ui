@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import { BUILTIN_SERVER_ID, resolveServerIdFromRequest } from "./db/index.js";
 import { config } from "./env.js";
 
 export interface ProxyTarget {
@@ -42,10 +43,12 @@ export function resolveProxyTarget(request: FastifyRequest): ProxyTarget {
     ? normalizeBaseUrl(customMetrics) ?? config.telemtMetricsUrl
     : config.telemtMetricsUrl;
 
+  const serverId = resolveServerIdFromRequest(request.headers);
+
   return {
     apiUrl,
     metricsUrl,
     apiAuth: customAuth ?? config.telemtApiAuth,
-    isRemote: Boolean(customApi),
+    isRemote: serverId !== BUILTIN_SERVER_ID,
   };
 }

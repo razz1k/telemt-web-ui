@@ -14,7 +14,7 @@ export function ServerSelector() {
         {servers.map((server) => (
           <option key={server.id} value={server.id}>
             {server.name}
-            {server.builtin ? " (env)" : ""}
+            {server.builtin ? " (default)" : ""}
           </option>
         ))}
       </select>

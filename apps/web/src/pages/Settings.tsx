@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { Card } from "../components/Card";
 import { RemoteServerBanner } from "../components/RemoteServerBanner";
 import { ServiceTabs } from "../components/ServiceTabs";
+import { useChangeNotify } from "../context/ChangeNotifyContext";
 import { api } from "../lib/api";
-import type { MvpConfig } from "../lib/types";
+import type { MvpConfig, MvpConfigUpdate } from "../lib/types";
 
 export function SettingsPage() {
+  const { notifyChange } = useChangeNotify();
   const queryClient = useQueryClient();
   const configQuery = useQuery({
     queryKey: ["config"],
@@ -30,7 +32,27 @@ export function SettingsPage() {
         censorship: form.censorship,
       });
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["config"] }),
+    onMutate: () => {
+      if (!configQuery.data) return;
+      const previous: MvpConfigUpdate = {
+        general: configQuery.data.general,
+        server: configQuery.data.server,
+        censorship: configQuery.data.censorship,
+      };
+      return { previous };
+    },
+    onSuccess: (_data, _vars, context) => {
+      if (context?.previous) {
+        notifyChange({
+          message: "Settings saved",
+          undo: async () => {
+            await api.putConfig(context.previous);
+            void queryClient.invalidateQueries({ queryKey: ["config"] });
+          },
+        });
+      }
+      void queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
   });
 
   if (configQuery.isLoading || !form) {
@@ -297,11 +319,6 @@ export function SettingsPage() {
 
         {saveMutation.error ? (
           <p className="text-sm text-red-400">{(saveMutation.error as Error).message}</p>
-        ) : null}
-        {saveMutation.isSuccess ? (
-          <p className="text-sm text-emerald-400">
-            Config saved. Telemt may reload automatically.
-          </p>
         ) : null}
       </form>
     </div>

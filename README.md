@@ -152,7 +152,7 @@ The header **Server** dropdown switches the active Telemt instance. **Servers** 
 
 Server profiles and cached user secrets are stored in **SQLite** (`./data/state.db`, mounted into the API container at `/var/lib/telemt-web-ui`). The database survives container restarts.
 
-- **Default (env)** — BFF uses `TELEMT_API_URL` / `TELEMT_METRICS_URL` from docker-compose.
+- **Default** — editable in **Servers** (stored in SQLite). Empty API/metrics URLs fall back to `TELEMT_API_URL` / `TELEMT_METRICS_URL` from docker-compose; **General Settings** (`config.toml`) stay available for this profile.
 - **Custom** — requests include `X-Telemt-Api-Url`, `X-Telemt-Metrics-Url`, optional `X-Telemt-Api-Auth`, and `X-Telemt-Server-Id`; the BFF proxies to that host.
 - Editing `config.toml` via **General Settings** is only available for the default server; remote servers still support user CRUD through the Control API.
 - User **secrets** in the Users table are read from SQLite (synced from `config.toml` on startup for the default server, updated on create/rotate/PATCH).

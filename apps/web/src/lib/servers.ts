@@ -4,8 +4,9 @@ export interface TelemtServer {
   apiUrl: string;
   metricsUrl: string;
   auth: string;
-  /** Built-in profile uses BFF env defaults when URLs are empty */
+  /** Built-in profile; empty URLs use BFF env (see envDefaults) */
   builtin?: boolean;
+  envDefaults?: { apiUrl: string; metricsUrl: string };
 }
 
 export const BUILTIN_SERVER_ID = "default";

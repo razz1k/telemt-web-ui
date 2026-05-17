@@ -82,3 +82,63 @@ body {
 .ui-stat-meta {
   @apply font-sans text-xs font-normal normal-case tracking-normal text-gray-500;
 }
+
+.change-notify {
+  position: fixed;
+  top: 5rem;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  max-width: min(22rem, calc(100vw - 1rem));
+  border-radius: 0.5rem 0 0 0.5rem;
+  border: 1px solid theme("colors.surface.border");
+  border-right: none;
+  background: theme("colors.surface.raised");
+  box-shadow: -4px 8px 24px rgb(0 0 0 / 0.35);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(0);
+}
+
+.change-notify--docked {
+  transform: translateX(calc(100% - 2rem));
+}
+
+.change-notify-tab {
+  flex: 0 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-right: 1px solid theme("colors.surface.border");
+  background: theme("colors.surface.DEFAULT");
+  color: theme("colors.gray.400");
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+
+.change-notify-tab:hover {
+  color: theme("colors.gray.100");
+  background: theme("colors.surface.raised");
+}
+
+.change-notify-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.875rem 1rem;
+}
+
+.change-notify-message {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: theme("colors.gray.200");
+}
+
+.change-notify-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

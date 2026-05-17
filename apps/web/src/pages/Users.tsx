@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { RemoteServerBanner } from "../components/RemoteServerBanner";
 import { ServiceTabs } from "../components/ServiceTabs";
+import { useChangeNotify } from "../context/ChangeNotifyContext";
 import { useServers } from "../context/ServerContext";
 import { isRemoteServer } from "../lib/servers";
 import { UserTableRow } from "../components/UserTableRow";
@@ -21,11 +22,13 @@ import {
   parseUsersCsv,
   sumUsersTrafficBytes,
   sumUsersTrafficRxTx,
+  userSecret,
   userTrafficBytes,
 } from "../lib/users";
 
 export function UsersPage() {
   const { activeServer } = useServers();
+  const { notifyChange } = useChangeNotify();
   const remote = isRemoteServer(activeServer);
   const queryClient = useQueryClient();
   const importRef = useRef<HTMLInputElement>(null);
@@ -108,14 +111,52 @@ export function UsersPage() {
         },
       });
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["config"] }),
+    onMutate: () => {
+      const links = configQuery.data?.general.links;
+      if (!links) return;
+      return {
+        previous: {
+          public_host: links.public_host,
+          public_port: links.public_port,
+        },
+      };
+    },
+    onSuccess: (_data, _vars, context) => {
+      if (context?.previous) {
+        const previous = context.previous;
+        notifyChange({
+          message: "Proxy links updated",
+          undo: async () => {
+            await api.putConfig({
+              general: { links: previous },
+            });
+            setPublicHost(previous.public_host);
+            setPublicPort(
+              previous.public_port != null ? String(previous.public_port) : "",
+            );
+            void queryClient.invalidateQueries({ queryKey: ["config"] });
+          },
+        });
+      }
+      void queryClient.invalidateQueries({ queryKey: ["config"] });
+    },
   });
 
   const createMutation = useMutation({
     mutationFn: () => api.createUser({ username: newUsername.trim() }),
-    onSuccess: () => {
+    onMutate: () => ({ username: newUsername.trim() }),
+    onSuccess: (_data, _vars, context) => {
+      const name = context?.username;
+      if (!name) return;
       setNewUsername("");
       void queryClient.invalidateQueries({ queryKey: ["users"] });
+      notifyChange({
+        message: `User "${name}" created`,
+        undo: async () => {
+          await api.deleteUser(name);
+          void queryClient.invalidateQueries({ queryKey: ["users"] });
+        },
+      });
     },
   });
 
@@ -149,21 +190,65 @@ export function UsersPage() {
     setBandwidthMbps({ down: downMbps, up: upMbps });
   }, [usersQuery.dataUpdatedAt, usersQuery.data?.trafficCounters]);
 
+  function undoPatchForUser(
+    user: UserInfo,
+    body: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const undo: Record<string, unknown> = {};
+    for (const key of Object.keys(body)) {
+      if (key === "secret") {
+        undo.secret = userSecret(user) ?? user.secret ?? "";
+      } else if (key === "max_tcp_conns") {
+        undo.max_tcp_conns = user.max_tcp_conns ?? null;
+      } else if (key === "max_unique_ips") {
+        undo.max_unique_ips = user.max_unique_ips ?? null;
+      } else if (key === "data_quota_bytes") {
+        undo.data_quota_bytes = user.data_quota_bytes ?? null;
+      } else if (key === "expiration_rfc3339") {
+        undo.expiration_rfc3339 = user.expiration_rfc3339 ?? null;
+      }
+    }
+    return undo;
+  }
+
   async function handlePatch(username: string, body: Record<string, unknown>) {
+    const user = users.find((u) => u.username === username);
+    if (!user) return;
+    const undoBody = undoPatchForUser(user, body);
     setBusyUser(username);
     try {
       await api.patchUser(username, body);
       await queryClient.invalidateQueries({ queryKey: ["users"] });
+      notifyChange({
+        message: `User "${username}" updated`,
+        undo: async () => {
+          await api.patchUser(username, undoBody);
+          void queryClient.invalidateQueries({ queryKey: ["users"] });
+        },
+      });
     } finally {
       setBusyUser(null);
     }
   }
 
   async function handleRotate(username: string) {
+    const user = users.find((u) => u.username === username);
+    const previousSecret = user ? userSecret(user) : undefined;
     setBusyUser(username);
     try {
       const data = await api.rotateSecret(username);
       await queryClient.invalidateQueries({ queryKey: ["users"] });
+      if (previousSecret) {
+        notifyChange({
+          message: `Secret rotated for "${username}"`,
+          undo: async () => {
+            await api.patchUser(username, { secret: previousSecret });
+            void queryClient.invalidateQueries({ queryKey: ["users"] });
+          },
+        });
+      } else {
+        notifyChange({ message: `Secret rotated for "${username}"` });
+      }
       return data.secret;
     } finally {
       setBusyUser(null);
@@ -209,6 +294,10 @@ export function UsersPage() {
                   if (ip) {
                     setPublicHost(ip);
                     if (configQuery.data?.editable) {
+                      const previous = {
+                        public_host: configQuery.data.general.links.public_host,
+                        public_port: configQuery.data.general.links.public_port,
+                      };
                       await api.putConfig({
                         general: {
                           links: {
@@ -221,6 +310,18 @@ export function UsersPage() {
                         },
                       });
                       void queryClient.invalidateQueries({ queryKey: ["config"] });
+                      notifyChange({
+                        message: "Public host updated",
+                        undo: async () => {
+                          await api.putConfig({
+                            general: { links: previous },
+                          });
+                          setPublicHost(previous.public_host);
+                          void queryClient.invalidateQueries({
+                            queryKey: ["config"],
+                          });
+                        },
+                      });
                     }
                   }
                 } catch {
@@ -334,6 +435,7 @@ export function UsersPage() {
               await api.resetQuota(u.username).catch(() => undefined);
             }
             void queryClient.invalidateQueries({ queryKey: ["users"] });
+            notifyChange({ message: "Stats reset for all users" });
           }}
         >
           Reset Stats
@@ -378,11 +480,22 @@ export function UsersPage() {
             if (!file) return;
             const text = await file.text();
             const rows = parseUsersCsv(text);
+            let imported = 0;
             for (const row of rows) {
-              await api.createUser(row).catch(() => undefined);
+              try {
+                await api.createUser(row);
+                imported += 1;
+              } catch {
+                /* skip row */
+              }
             }
             void queryClient.invalidateQueries({ queryKey: ["users"] });
             e.target.value = "";
+            if (imported > 0) {
+              notifyChange({
+                message: `Imported ${imported} user${imported === 1 ? "" : "s"}`,
+              });
+            }
           }}
         />
       </div>
@@ -411,10 +524,27 @@ export function UsersPage() {
                 onPatch={handlePatch}
                 onRotate={handleRotate}
                 onDelete={async (username) => {
+                  const user = users.find((u) => u.username === username);
+                  if (!user) return;
+                  const snapshot = {
+                    username: user.username,
+                    secret: userSecret(user),
+                    max_tcp_conns: user.max_tcp_conns,
+                    max_unique_ips: user.max_unique_ips,
+                    data_quota_bytes: user.data_quota_bytes,
+                    expiration_rfc3339: user.expiration_rfc3339,
+                  };
                   setBusyUser(username);
                   try {
                     await api.deleteUser(username);
                     await queryClient.invalidateQueries({ queryKey: ["users"] });
+                    notifyChange({
+                      message: `User "${username}" deleted`,
+                      undo: async () => {
+                        await api.createUser(snapshot);
+                        void queryClient.invalidateQueries({ queryKey: ["users"] });
+                      },
+                    });
                   } finally {
                     setBusyUser(null);
                   }
@@ -422,6 +552,9 @@ export function UsersPage() {
                 onResetQuota={async (username) => {
                   await api.resetQuota(username);
                   void queryClient.invalidateQueries({ queryKey: ["users"] });
+                  notifyChange({
+                    message: `Stats reset for "${username}"`,
+                  });
                 }}
               />
             ))}

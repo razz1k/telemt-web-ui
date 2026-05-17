@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { config } from "../env.js";
 import { BUILTIN_SERVER_ID, getDb } from "./index.js";
 
 export interface ServerRow {
@@ -18,6 +19,8 @@ export interface ServerDto {
   metricsUrl: string;
   auth: string;
   builtin?: boolean;
+  /** Filled from container env when builtin URLs in DB are empty */
+  envDefaults?: { apiUrl: string; metricsUrl: string };
 }
 
 function rowToDto(row: ServerRow): ServerDto {
@@ -27,7 +30,15 @@ function rowToDto(row: ServerRow): ServerDto {
     apiUrl: row.api_url,
     metricsUrl: row.metrics_url,
     auth: row.auth,
-    ...(row.is_builtin ? { builtin: true } : {}),
+    ...(row.is_builtin
+      ? {
+          builtin: true,
+          envDefaults: {
+            apiUrl: config.telemtApiUrl,
+            metricsUrl: config.telemtMetricsUrl,
+          },
+        }
+      : {}),
   };
 }
 
@@ -97,7 +108,7 @@ export function updateServer(
   const existing = getDb()
     .prepare("SELECT * FROM servers WHERE id = ?")
     .get(id) as ServerRow | undefined;
-  if (!existing || existing.is_builtin) return null;
+  if (!existing) return null;
 
   const name = patch.name !== undefined ? patch.name.trim() : existing.name;
   const apiUrl = patch.apiUrl !== undefined ? patch.apiUrl.trim() : existing.api_url;

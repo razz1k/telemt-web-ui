@@ -3,7 +3,12 @@ import { Card, Stat, StatGrid } from "../components/Card";
 import { ServiceTabs } from "../components/ServiceTabs";
 import { StatusBadge } from "../components/StatusBadge";
 import { api, formatBytes, formatUptime, pickUptimeSeconds } from "../lib/api";
-import { parseDashboardMetrics } from "../lib/metrics";
+import {
+  parseDashboardMetrics,
+  parsePerUserTrafficMetrics,
+  sumPerUserTrafficCounters,
+} from "../lib/metrics";
+import { countUsersOnline } from "../lib/users";
 import type { ServiceState } from "../lib/types";
 
 const POLL_MS = 3000;
@@ -30,6 +35,7 @@ export function DashboardPage() {
         api.connectionsSummary(),
         api.minimalAll(),
         api.metricsText(),
+        api.users(),
       ]);
 
       const health =
@@ -46,7 +52,12 @@ export function DashboardPage() {
         results[5].status === "fulfilled" ? results[5].value : null;
       const metricsText =
         results[6].status === "fulfilled" ? results[6].value : "";
+      const users =
+        results[7].status === "fulfilled" ? results[7].value : null;
       const prom = parseDashboardMetrics(metricsText);
+      const traffic = sumPerUserTrafficCounters(
+        parsePerUserTrafficMetrics(metricsText),
+      );
 
       const healthOk = health?.status === "ok";
       const serviceState = deriveServiceState(healthOk, ready?.ready);
@@ -60,6 +71,8 @@ export function DashboardPage() {
         connections,
         minimal,
         prom,
+        traffic,
+        users,
         error: !healthOk,
       };
     },
@@ -75,11 +88,12 @@ export function DashboardPage() {
 
   const activeConnections =
     data?.connections?.total_connections ??
-    data?.summary?.active_connections ??
+    data?.summary?.connections_total ??
     data?.prom.activeConnections;
   const usersOnline =
-    data?.prom.usersOnline ??
-    data?.connections?.unique_ips;
+    data?.users !== null && data?.users !== undefined
+      ? countUsersOnline(data.users)
+      : data?.prom.usersOnline ?? data?.connections?.unique_ips;
 
   return (
     <div className="space-y-4">
@@ -146,11 +160,11 @@ export function DashboardPage() {
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-2">
               <dt className="text-gray-500">RX</dt>
-              <dd>{formatBytes(data?.summary?.total_rx_bytes ?? 0)}</dd>
+              <dd>{formatBytes(data?.traffic?.downloadBytes ?? 0)}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-gray-500">TX</dt>
-              <dd>{formatBytes(data?.summary?.total_tx_bytes ?? 0)}</dd>
+              <dd>{formatBytes(data?.traffic?.uploadBytes ?? 0)}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-gray-500">Version</dt>
