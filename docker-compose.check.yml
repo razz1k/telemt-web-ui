@@ -1,0 +1,77 @@
+# Linters, typecheck, shellcheck, and production build without local Node/pnpm.
+# Usage:
+#   npm run typecheck | npm run lint | npm run shellcheck | npm run build
+#   docker compose -f docker-compose.check.yml run --rm <service>
+#
+# Image USER matches host UID/GID (build.args). Outputs and node_modules on bind mount.
+
+x-check-service: &check-service
+  build:
+    context: .
+    dockerfile: deploy/docker/Dockerfile.check
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  user: "${UID:-1000}:${GID:-1000}"
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+
+services:
+  typecheck:
+    <<: *check-service
+    command:
+      - bash
+      - -ec
+      - |
+        set -euo pipefail
+        echo "==> @telemt-web-ui/api"
+        cd apps/api
+        npm install
+        npm run typecheck
+        echo "==> @telemt-web-ui/web"
+        cd ../web
+        npm install
+        npm run typecheck
+        echo "==> typecheck OK"
+
+  lint:
+    <<: *check-service
+    command:
+      - bash
+      - -ec
+      - |
+        set -euo pipefail
+        echo "==> @telemt-web-ui/api"
+        cd apps/api
+        npm install
+        npm run lint
+        echo "==> @telemt-web-ui/web"
+        cd ../web
+        npm install
+        npm run lint
+        echo "==> lint OK"
+
+  build:
+    <<: *check-service
+    command:
+      - bash
+      - -ec
+      - |
+        set -euo pipefail
+        echo "==> @telemt-web-ui/api"
+        cd apps/api
+        npm install
+        npm run build
+        echo "==> @telemt-web-ui/web"
+        cd ../web
+        npm install
+        npm run build
+        echo "==> build OK"
+
+  shellcheck:
+    image: alpine:3.21
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ["apk add --no-cache shellcheck >/dev/null && shellcheck /scripts/*.sh"]

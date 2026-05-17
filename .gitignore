@@ -1,0 +1,38 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.local
+
+# Runtime telemt config (copy from example)
+config/
+!config/config.toml.example
+
+# SQLite UI state (servers, user secrets cache)
+data/*.db
+data/*.db-*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite
+apps/web/.vite/
+
+# Docker
+.docker/

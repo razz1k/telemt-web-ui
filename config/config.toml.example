@@ -1,0 +1,43 @@
+# Telemt configuration for bundled docker-compose.
+# Copy to config/config.toml before first start:
+#   cp config/config.toml.example config/config.toml
+
+[general]
+use_middle_proxy = false
+log_level = "normal"
+
+[general.modes]
+classic = false
+secure = false
+tls = true
+
+[general.links]
+show = "*"
+# public_host = "proxy.example.com"
+# public_port = 443
+
+[server]
+port = 443
+metrics_port = 9092
+metrics_listen = "0.0.0.0:9092"
+metrics_whitelist = ["127.0.0.0/8", "::1/128", "172.16.0.0/12", "10.0.0.0/8"]
+
+[server.api]
+enabled = true
+listen = "0.0.0.0:9091"
+whitelist = ["127.0.0.0/8", "::1/128", "172.16.0.0/12", "10.0.0.0/8"]
+minimal_runtime_enabled = true
+minimal_runtime_cache_ttl_ms = 1000
+# auth_header = "Bearer your-secret-token"
+
+[[server.listeners]]
+ip = "0.0.0.0"
+
+[censorship]
+tls_domain = "google.com"
+mask = true
+tls_emulation = true
+tls_front_dir = "tlsfront"
+
+[access.users]
+admin = "00000000000000000000000000000001"

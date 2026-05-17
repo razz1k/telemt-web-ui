@@ -1,0 +1,26 @@
+{
+  "name": "telemt-web-ui",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Standalone web panel for Telemt MTProxy Control API",
+  "scripts": {
+    "check:config": "test -f config/config.toml || cp config/config.toml.example config/config.toml",
+    "dev": "npm run check:config && docker compose up -d telemt && docker compose -f docker-compose.dev.yml up -d --build",
+    "dev:stop": "docker compose -f docker-compose.dev.yml stop",
+    "build": "docker compose -f docker-compose.check.yml run --rm build",
+    "lint": "docker compose -f docker-compose.check.yml run --rm lint",
+    "typecheck": "docker compose -f docker-compose.check.yml run --rm typecheck",
+    "shellcheck": "docker compose -f docker-compose.check.yml run --rm shellcheck",
+    "clean": "sh scripts/clean.sh",
+    "clean:repo": "sh scripts/clean-repo.sh",
+    "clean:docker": "sh scripts/clean-docker.sh",
+    "dev:local": "npm run check:config && pnpm -r --parallel dev",
+    "build:local": "pnpm -r build",
+    "lint:local": "pnpm -r lint",
+    "typecheck:local": "pnpm -r typecheck",
+    "shellcheck:local": "shellcheck scripts/*.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

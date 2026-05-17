@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+body {
+  @apply m-0 min-h-screen bg-surface text-gray-100 antialiased;
+}
+
+#root {
+  @apply min-h-screen;
+}
+
+.ui-input {
+  @apply rounded border border-surface-border bg-[#2a2e36] px-2 py-1.5 text-sm text-gray-100
+    placeholder:text-gray-600 focus:outline-none focus:border-accent/60;
+}
+
+.ui-btn {
+  @apply px-3 py-1.5 rounded border text-sm font-medium transition-colors disabled:opacity-50;
+}
+
+.ui-btn-blue {
+  @apply border-sky-600/80 text-sky-300 bg-sky-950/40 hover:bg-sky-900/50;
+}
+
+.ui-btn-red {
+  @apply border-red-600/80 text-red-300 bg-red-950/40 hover:bg-red-900/50;
+}
+
+.ui-btn-ghost {
+  @apply border-surface-border text-gray-400 hover:bg-surface hover:text-gray-200;
+}
+
+.ui-table th,
+.ui-table td {
+  @apply px-1;
+}
+
+.ui-stats-bar {
+  @apply flex flex-wrap items-center gap-x-5 gap-y-2 rounded-md border border-surface-border
+    bg-surface-raised/60 px-3 py-2 text-sm;
+}
+
+.ui-stat {
+  @apply flex items-baseline gap-1.5;
+}
+
+.ui-stat-label {
+  @apply font-sans text-xs font-medium uppercase tracking-wide text-gray-500;
+}
+
+.ui-stat-value {
+  @apply font-mono tabular-nums text-emerald-400/90;
+}
+
+.ui-stat-directions {
+  @apply inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5;
+}
+
+.ui-stat-direction {
+  @apply inline-flex items-baseline gap-1;
+}
+
+.ui-stat-direction-mark {
+  @apply text-gray-500;
+}
+
+.ui-stat-unit {
+  @apply font-sans text-xs text-gray-500;
+}
+
+.ui-stat-meta {
+  @apply font-sans text-xs font-normal normal-case tracking-normal text-gray-500;
+}

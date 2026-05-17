@@ -1,0 +1,72 @@
+# Hot-reload development without local Node/pnpm.
+# Requires telemt stack network:
+#   npm run dev   (starts telemt, then api-dev + web-dev)
+#
+# Image USER matches host UID/GID (build.args). node_modules on bind mount (no named volume).
+
+services:
+  api-dev:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.check
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    user: "${UID:-1000}:${GID:-1000}"
+    container_name: telemt-web-api-dev
+    working_dir: /workspace/apps/api
+    volumes:
+      - .:/workspace
+      - ./config:/etc/telemt
+      - ./data:/var/lib/telemt-web-ui
+    ports:
+      - "3000:3000"
+    environment:
+      API_PORT: "3000"
+      TELEMT_API_URL: http://telemt:9091
+      TELEMT_METRICS_URL: http://telemt:9092
+      TELEMT_CONFIG_PATH: /etc/telemt/config.toml
+      TELEMT_API_AUTH: ${TELEMT_API_AUTH:-}
+      WEB_UI_PASSWORD: ${WEB_UI_PASSWORD:-}
+      UI_DB_PATH: /var/lib/telemt-web-ui/state.db
+    command:
+      - bash
+      - -ec
+      - |
+        npm install
+        exec npm run dev
+    networks:
+      - telemt_net
+
+  web-dev:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.check
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    user: "${UID:-1000}:${GID:-1000}"
+    container_name: telemt-web-ui-dev
+    working_dir: /workspace/apps/web
+    volumes:
+      - .:/workspace
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_PROXY_TARGET: http://api-dev:3000
+      CHOKIDAR_USEPOLLING: "true"
+    command:
+      - bash
+      - -ec
+      - |
+        npm install
+        exec npm run dev -- --host 0.0.0.0 --port 5173
+    depends_on:
+      - api-dev
+    networks:
+      - telemt_net
+
+networks:
+  telemt_net:
+    external: true
+    name: telemt-web-ui_telemt_net
