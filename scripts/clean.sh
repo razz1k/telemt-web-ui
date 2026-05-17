@@ -1,16 +1,28 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
-cd "$ROOT"
+cd "$(dirname "$0")/.."
+
+# git clean -dfX, minus:
+#   node_modules anywhere, config/, data/, .env*
+candidates=$(
+  git clean -dfX -n 2>/dev/null \
+    | awk '{print $NF}' \
+    | grep -vE \
+        -e '(^|/)node_modules(/|$)' \
+        -e '^config(/|$)' \
+        -e '^data(/|$)' \
+        -e '^\.env(\.local)?$' \
+    || true
+)
+
+if [ -z "$candidates" ]; then
+  printf 'Nothing to clean.\n'
+  exit 0
+fi
 
 printf 'Dry run (files that would be removed):\n'
-git clean -dfX -n \
-  -e apps/api/node_modules/ \
-  -e apps/web/node_modules/ \
-  --exclude=data/state.db \
-  --exclude='data/*.db' \
-  -- ':!data'
+printf '%s\n' "$candidates" | sed 's/^/  /'
 
 printf '\nDelete these files? [y/N] '
 read -r ans
@@ -22,9 +34,10 @@ case $ans in
     ;;
 esac
 
-git clean -dfX \
-  -e apps/api/node_modules/ \
-  -e apps/web/node_modules/ \
-  --exclude=data/state.db \
-  --exclude='data/*.db' \
-  -- ':!data'
+printf '%s\n' "$candidates" | while IFS= read -r f; do
+  [ -e "$f" ] || [ -L "$f" ] || continue
+  printf 'Removing %s\n' "$f"
+  rm -rf "$f"
+done
+
+printf 'Done.\n'
