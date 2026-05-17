@@ -40,7 +40,7 @@ export function UsersPage() {
   const [busyUser, setBusyUser] = useState<string | null>(null);
 
   const configQuery = useQuery({
-    queryKey: ["config"],
+    queryKey: ["config", activeServer.id],
     queryFn: () => api.getConfig(),
   });
 
@@ -136,11 +136,11 @@ export function UsersPage() {
             setPublicPort(
               previous.public_port != null ? String(previous.public_port) : "",
             );
-            void queryClient.invalidateQueries({ queryKey: ["config"] });
+            void queryClient.invalidateQueries({ queryKey: ["config", activeServer.id] });
           },
         });
       }
-      void queryClient.invalidateQueries({ queryKey: ["config"] });
+      void queryClient.invalidateQueries({ queryKey: ["config", activeServer.id] });
     },
   });
 
@@ -311,7 +311,7 @@ export function UsersPage() {
                           },
                         },
                       });
-                      void queryClient.invalidateQueries({ queryKey: ["config"] });
+                      void queryClient.invalidateQueries({ queryKey: ["config", activeServer.id] });
                       notifyChange({
                         message: "Public host updated",
                         undo: async () => {
@@ -320,7 +320,7 @@ export function UsersPage() {
                           });
                           setPublicHost(previous.public_host);
                           void queryClient.invalidateQueries({
-                            queryKey: ["config"],
+                            queryKey: ["config", activeServer.id],
                           });
                         },
                       });
@@ -503,7 +503,7 @@ export function UsersPage() {
       </div>
 
       <div className="overflow-x-auto rounded border border-surface-border bg-surface-raised/50">
-        <table className="ui-table w-full text-sm min-w-[1150px]">
+        <table className="ui-table w-full text-sm min-w-[1280px]">
           <thead>
             <tr className="text-left text-gray-500 border-b border-surface-border">
               <th className="py-2 pr-2 font-normal">Name</th>
@@ -513,6 +513,7 @@ export function UsersPage() {
               <th className="py-2 pr-2 font-normal">Quota (GB)</th>
               <th className="py-2 pr-2 font-normal">Expire Date</th>
               <th className="py-2 pr-2 font-normal">Status and Stats</th>
+              <th className="py-2 pr-2 font-normal w-[10rem]">Active IPs</th>
               <th className="py-2 pr-2 font-normal">Ready-to-use link</th>
               <th className="py-2 font-normal" />
             </tr>
@@ -570,7 +571,7 @@ export function UsersPage() {
                   onChange={(e) => setNewUsername(e.target.value)}
                 />
               </td>
-              <td colSpan={7} className="py-3">
+              <td colSpan={8} className="py-3">
                 <button
                   type="button"
                   className="ui-btn ui-btn-blue"

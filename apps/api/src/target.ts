@@ -44,11 +44,26 @@ export function resolveProxyTarget(request: FastifyRequest): ProxyTarget {
     : config.telemtMetricsUrl;
 
   const serverId = resolveServerIdFromRequest(request.headers);
+  const isRemote = !isLocalConfigTarget(serverId, customApi);
 
   return {
     apiUrl,
     metricsUrl,
     apiAuth: customAuth ?? config.telemtApiAuth,
-    isRemote: serverId !== BUILTIN_SERVER_ID,
+    isRemote,
   };
+}
+
+/** Local config.toml applies only to the builtin server using the BFF env API URL. */
+function isLocalConfigTarget(
+  serverId: string,
+  customApiHeader: string | undefined,
+): boolean {
+  if (serverId !== BUILTIN_SERVER_ID) return false;
+  if (!customApiHeader?.trim()) return true;
+  const custom = normalizeBaseUrl(customApiHeader);
+  const env = normalizeBaseUrl(config.telemtApiUrl);
+  if (!custom) return true;
+  if (!env) return false;
+  return custom === env;
 }

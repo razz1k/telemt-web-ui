@@ -4,6 +4,7 @@ import type { UserInfo } from "../lib/types";
 import {
   formatIpBadge,
   formatUserTraffic,
+  userActiveIpList,
   userRowHighlightClass,
   userStatusDotClass,
   fromDatetimeLocalValue,
@@ -54,6 +55,7 @@ export function UserTableRow({
   }, [user, secretEdited]);
 
   const traffic = formatUserTraffic(user);
+  const activeIps = userActiveIpList(user);
   const rowClass = userRowHighlightClass(user);
 
   async function saveField(patch: Record<string, unknown>) {
@@ -175,6 +177,22 @@ export function UserTableRow({
         >
           Reset stats
         </button>
+      </td>
+      <td className="py-3 pr-2 w-[10rem] max-w-[12rem] align-top group/active-ips">
+        {activeIps.length === 0 ? (
+          <span className="text-xs text-gray-600">—</span>
+        ) : (
+          <ul
+            className="max-h-24 overflow-y-auto overflow-x-hidden text-xs font-mono text-gray-400 space-y-0.5 pr-1 blur-sm select-none transition-[filter] duration-200 group-hover/active-ips:blur-none group-hover/active-ips:select-text"
+            title={`${activeIps.length} active IP${activeIps.length === 1 ? "" : "s"} — hover to reveal`}
+          >
+            {activeIps.map((ip) => (
+              <li key={ip} className="truncate" title={ip}>
+                {ip}
+              </li>
+            ))}
+          </ul>
+        )}
       </td>
       <td className="py-3 pr-2 min-w-[220px]">
         <input

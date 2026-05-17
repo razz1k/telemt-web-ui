@@ -110,7 +110,8 @@ app.put("/api/config", async (request, reply) => {
       ok: false,
       error: {
         code: "forbidden",
-        message: "Config editing is only available for the default server",
+        message:
+          "Config editing is only available for the default server with a local API URL (leave API URL empty or match TELEMT_API_URL)",
       },
     });
   }

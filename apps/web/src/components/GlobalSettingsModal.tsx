@@ -200,7 +200,9 @@ export function GlobalSettingsModal() {
               {editingBuiltin ? (
                 <p className="text-xs text-gray-500">
                   Leave API or Metrics URL empty to use TELEMT_API_URL /
-                  TELEMT_METRICS_URL from the API container environment.
+                  TELEMT_METRICS_URL from the API container environment. A custom API
+                  URL disables Settings / link fields that edit local config.toml (API
+                  user fields still work).
                 </p>
               ) : null}
               <label className="block text-sm">

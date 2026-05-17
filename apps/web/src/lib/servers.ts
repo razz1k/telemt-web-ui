@@ -27,6 +27,30 @@ export function serverRequestHeaders(server: TelemtServer): Record<string, strin
   return headers;
 }
 
+function normalizeOrigin(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * True when local config.toml editing must not be offered (non-builtin, or
+ * builtin with a custom API URL that does not match the BFF environment).
+ */
 export function isRemoteServer(server: TelemtServer): boolean {
-  return !server.builtin && server.apiUrl.trim().length > 0;
+  if (!server.builtin) return true;
+  const custom = server.apiUrl.trim();
+  if (!custom) return false;
+  const envDefault = server.envDefaults?.apiUrl?.trim();
+  if (!envDefault) return true;
+  const a = normalizeOrigin(custom);
+  const b = normalizeOrigin(envDefault);
+  if (!a || !b) return true;
+  return a !== b;
 }

@@ -111,6 +111,19 @@ export function userActiveIpCount(user: UserInfo): number {
   return user.active_unique_ips ?? user.active_ips?.length ?? 0;
 }
 
+/** Active unique source IPs for display (deduped, stable order). */
+export function userActiveIpList(user: UserInfo): string[] {
+  const list = user.active_unique_ips_list ?? user.active_ips ?? [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const ip of list) {
+    if (!ip || seen.has(ip)) continue;
+    seen.add(ip);
+    out.push(ip);
+  }
+  return out;
+}
+
 /** Distinct active source IPs across all users (deduped when lists are present). */
 export function countActiveUniqueIps(users: UserInfo[]): number {
   const seen = new Set<string>();

@@ -4,14 +4,19 @@ import { Card } from "../components/Card";
 import { RemoteServerBanner } from "../components/RemoteServerBanner";
 import { ServiceTabs } from "../components/ServiceTabs";
 import { useChangeNotify } from "../context/ChangeNotifyContext";
+import { useServers } from "../context/ServerContext";
 import { api } from "../lib/api";
+import { isRemoteServer } from "../lib/servers";
 import type { MvpConfig, MvpConfigUpdate } from "../lib/types";
 
 export function SettingsPage() {
   const { notifyChange } = useChangeNotify();
+  const { activeServer } = useServers();
+  const remote = isRemoteServer(activeServer);
+  const canEditConfig = !remote;
   const queryClient = useQueryClient();
   const configQuery = useQuery({
-    queryKey: ["config"],
+    queryKey: ["config", activeServer.id],
     queryFn: () => api.getConfig(),
   });
 
@@ -47,11 +52,11 @@ export function SettingsPage() {
           message: "Settings saved",
           undo: async () => {
             await api.putConfig(context.previous);
-            void queryClient.invalidateQueries({ queryKey: ["config"] });
+            void queryClient.invalidateQueries({ queryKey: ["config", activeServer.id] });
           },
         });
       }
-      void queryClient.invalidateQueries({ queryKey: ["config"] });
+      void queryClient.invalidateQueries({ queryKey: ["config", activeServer.id] });
     },
   });
 
@@ -77,7 +82,7 @@ export function SettingsPage() {
         </p>
       </div>
 
-      {!form.editable ? (
+      {!form.editable && !remote ? (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
           Config file is read-only. Set TELEMT_CONFIG_PATH in the API container to
           enable editing.
@@ -88,7 +93,7 @@ export function SettingsPage() {
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          saveMutation.mutate();
+          if (canEditConfig) saveMutation.mutate();
         }}
       >
         <Card title="Proxy links (tg://)">
@@ -103,7 +108,7 @@ export function SettingsPage() {
                   className="ui-input flex-1"
                   value={form.general.links.public_host}
                   placeholder="proxy.example.com"
-                  disabled={!form.editable}
+                  disabled={!form.editable || remote}
                   onChange={(e) =>
                     setForm({
                       ...form,
@@ -120,7 +125,7 @@ export function SettingsPage() {
                 <button
                   type="button"
                   className="ui-btn ui-btn-blue shrink-0"
-                  disabled={!form.editable}
+                  disabled={!form.editable || remote}
                   onClick={async () => {
                     try {
                       const { ip } = await api.publicIp();
@@ -152,7 +157,7 @@ export function SettingsPage() {
                 className="ui-input w-full mt-1"
                 value={form.general.links.public_port ?? ""}
                 placeholder="same as server.port"
-                disabled={!form.editable}
+                disabled={!form.editable || remote}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -179,7 +184,7 @@ export function SettingsPage() {
             <select
               className="ui-input w-full mt-1"
               value={form.general.log_level}
-              disabled={!form.editable}
+              disabled={!form.editable || remote}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -200,7 +205,7 @@ export function SettingsPage() {
                 <input
                   type="checkbox"
                   checked={form.general.modes[mode]}
-                  disabled={!form.editable}
+                  disabled={!form.editable || remote}
                   onChange={(e) =>
                     setForm({
                       ...form,
@@ -227,7 +232,7 @@ export function SettingsPage() {
               type="number"
               className="ui-input w-full mt-1"
               value={form.server.port}
-              disabled={!form.editable}
+              disabled={!form.editable || remote}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -247,7 +252,7 @@ export function SettingsPage() {
             <input
               className="ui-input w-full mt-1"
               value={form.censorship.tls_domain}
-              disabled={!form.editable}
+              disabled={!form.editable || remote}
               onChange={(e) =>
                 setForm({
                   ...form,
@@ -264,7 +269,7 @@ export function SettingsPage() {
               <input
                 type="checkbox"
                 checked={form.censorship.mask}
-                disabled={!form.editable}
+                disabled={!form.editable || remote}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -281,7 +286,7 @@ export function SettingsPage() {
               <input
                 type="checkbox"
                 checked={form.censorship.tls_emulation}
-                disabled={!form.editable}
+                disabled={!form.editable || remote}
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -307,7 +312,7 @@ export function SettingsPage() {
           </dl>
         </Card>
 
-        {form.editable ? (
+        {form.editable && canEditConfig ? (
           <button
             type="submit"
             disabled={saveMutation.isPending}
